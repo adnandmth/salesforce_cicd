@@ -1,0 +1,32 @@
+image: node:18 # Specify the Node.js Docker image that will have npm installed
+
+pipelines:
+  pull-requests:
+    '**':
+      - step:
+          name: Authenticate and Test in Salesforce Sandbox (Staging)
+          script:
+            # Make sure all bash scripts are executable
+            - chmod +x bin/install_dependencies.sh
+            - chmod +x bin/authenticate_salesforce.sh
+            - chmod +x bin/get_modified_test_classes.sh
+            - chmod +x bin/deploy_to_sandbox.sh
+
+            # Install dependencies
+            - echo "Installing dependencies..."
+            - bin/install_dependencies.sh || { echo "Dependency installation failed"; exit 1; }
+            
+            # Authenticate with Salesforce
+            - echo "Authenticating with Salesforce..."
+            - bin/authenticate_salesforce.sh || { echo "Salesforce authentication failed"; exit 1; }
+
+            # Run the script to get the modified test classes and parse the output
+            - echo "Running script to detect modified test classes..."
+            - TEST_OUTPUT=$(bin/get_modified_test_classes.sh)
+
+            # Run the deployment script, passing the modified test classes output
+            - echo "Running deployment to Sandbox..."
+            - TEST_OUTPUT="$TEST_OUTPUT" bin/deploy_to_sandbox.sh
+
+            # Clean up the private key file
+            - rm cert/server.key
